@@ -52,7 +52,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.NODE_LIBCURL_GITHUB_TOKEN }}
 
       - name: Configure git identity
         run: |
