@@ -76,7 +76,7 @@ jobs:
         if: inputs.enable-debugging
 
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - uses: actions/github-script@v8
         id: version-check
