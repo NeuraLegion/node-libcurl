@@ -35,7 +35,11 @@ const octo = new Octokit({
   auth: process.env['NODE_LIBCURL_GITHUB_TOKEN'],
 })
 
-const [owner, repo] = 'JCMais/node-libcurl'.split('/')
+const repoUrl = require('../package.json').repository.url
+const [owner, repo] = repoUrl
+  .replace(/\.git$/, '')
+  .split('/')
+  .slice(-2)
 const commands = {
   publish: publish,
   unpublish: unpublish,
