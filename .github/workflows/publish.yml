@@ -76,6 +76,12 @@ jobs:
         with:
           node-version: '${{ env.NODE_VERSION }}'
 
+      - name: Configure npm registry
+        uses: actions/setup-node@v5
+        with:
+          node-version: '${{ env.NODE_VERSION }}'
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
         if: inputs.enable-debugging
@@ -166,6 +172,7 @@ jobs:
       - name: Publish to NPM
         env:
           NPM_CONFIG_PROVENANCE: true
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           pnpm publish \
             --access public \
