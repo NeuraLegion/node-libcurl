@@ -36,7 +36,10 @@ const octo = new Octokit({
 })
 
 const repoUrl = require('../package.json').repository.url
-const [owner, repo] = repoUrl.replace(/\.git$/, '').split('/').slice(-2)
+const [owner, repo] = repoUrl
+  .replace(/\.git$/, '')
+  .split('/')
+  .slice(-2)
 const commands = {
   publish: publish,
   unpublish: unpublish,
