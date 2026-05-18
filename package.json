@@ -103,7 +103,7 @@
     "cheerio": "1.0.0-rc.3",
     "clang-format": "1.8.0",
     "cookie-parser": "1.4.7",
-    "electron": "38.2.0",
+    "electron": "39.8.5",
     "eslint": "9.36.0",
     "eslint-plugin-prettier": "5.5.4",
     "express": "4.21.2",
