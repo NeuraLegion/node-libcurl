@@ -166,6 +166,14 @@
           ],
         }],
         ['OS=="linux"', {
+          # Statically link libstdc++ and libgcc so the addon loads on older
+          # distributions (e.g. Rocky Linux 8 / RHEL 8) that only ship
+          # GLIBCXX_3.4.25 (GCC 8).  This has no effect on the host ABI for
+          # the Node.js C API itself – only the C++ runtime of the addon.
+          'ldflags': [
+            '-static-libstdc++',
+            '-static-libgcc',
+          ],
           'conditions': [
             ['curl_static_build=="true"', {
               # pretty sure cflags adds that
