@@ -864,8 +864,8 @@ describe.runIf(Curl.isVersionGreaterOrEqualThan(7, 56, 0))('CurlMime', () => {
           stream,
           () => {
             if (curl.handle.isPausedRecv) {
-            curl.pause(curl.handle.pauseFlags & ~CurlPause.Recv)
-          }
+              curl.pause(curl.handle.pauseFlags & ~CurlPause.Recv)
+            }
           },
           testData.length,
         )

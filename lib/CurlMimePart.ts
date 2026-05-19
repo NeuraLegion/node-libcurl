@@ -424,8 +424,9 @@ CurlMimePart.prototype.setDataStream = function (
 ): typeof CurlMimePart.prototype {
   let streamEnded = false
   let streamError: Error | null = null
-  // Set to true when the read callback returns CurlReadFunc.Pause, meaning
-  // libcurl has been asked to pause. Reset to false once unpause() is called.
+  // Tracks whether the read callback has returned CurlReadFunc.Pause and an
+  // unpause has not yet been issued. Only call unpause() when this is true to
+  // avoid calling curl.pause() on a non-paused handle (which throws).
   let paused = false
 
   const tryUnpause = () => {
@@ -436,8 +437,8 @@ CurlMimePart.prototype.setDataStream = function (
   }
 
   const onReadable = () => {
-    // Defer so libcurl has a chance to actually set the paused state after
-    // the read callback that returned CurlReadFunc.Pause has returned.
+    // Defer so that if the read callback is running synchronously right now
+    // and is about to set paused=true, we see that on the next tick.
     setImmediate(tryUnpause)
   }
 
