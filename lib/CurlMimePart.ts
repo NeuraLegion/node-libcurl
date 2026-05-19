@@ -424,28 +424,74 @@ CurlMimePart.prototype.setDataStream = function (
 ): typeof CurlMimePart.prototype {
   let streamEnded = false
   let streamError: Error | null = null
+  // Set to true when the read callback returns Pause; cleared only when
+  // read() successfully returns data (confirming libcurl resumed the handle).
+  // Prevents calling unpause() on a handle that isn't paused.
+  let paused = false
+  let pendingUnpause: ReturnType<typeof setImmediate> | null = null
+
+  const tryUnpause = () => {
+    pendingUnpause = null
+    if (paused) {
+      // Call the user-provided unpause callback. If isPausedRecv is still
+      // false (libcurl hasn't finished processing the Pause return value yet),
+      // the callback will be a no-op and we must retry. We do NOT clear
+      // `paused` here — it is cleared only when read() successfully returns
+      // data, which confirms libcurl has actually resumed. Re-schedule so
+      // we keep trying until libcurl resumes the handle.
+      unpause()
+      scheduleUnpause()
+    }
+  }
+
+  const scheduleUnpause = () => {
+    if (!pendingUnpause) {
+      pendingUnpause = setImmediate(tryUnpause)
+    }
+  }
 
   const onReadable = () => {
-    unpause()
+    // Defer unpause so libcurl has finished processing the read callback
+    // result and marked the handle as paused before we resume it.
+    scheduleUnpause()
   }
 
   const onEnd = () => {
     streamEnded = true
-    unpause()
-    cleanup()
+    // Remove listeners first so we don't re-enter these handlers.
+    removeListeners()
+    // Schedule a deferred unpause so libcurl has time to set isPausedRecv
+    // after processing the read callback's Pause return value before we
+    // try to resume it. Using scheduleUnpause (not tryUnpause) preserves
+    // the setImmediate deferral that is essential for correct ordering.
+    scheduleUnpause()
   }
 
   const onError = (err: Error) => {
     streamError = err
     streamEnded = true
-    unpause()
-    cleanup()
+    removeListeners()
+    // Same deferral rationale as onEnd.
+    scheduleUnpause()
   }
 
-  const cleanup = () => {
+  // Removes stream event listeners only — does NOT cancel pending unpause
+  // so that an in-flight scheduleUnpause() from read() or onEnd/onError
+  // can still fire after the stream is done.
+  const removeListeners = () => {
     stream.off('readable', onReadable)
     stream.off('end', onEnd)
     stream.off('error', onError)
+  }
+
+  // Full cleanup: remove listeners AND cancel any pending unpause.
+  // Called only from free() when the curl handle is being torn down.
+  const cleanup = () => {
+    removeListeners()
+    if (pendingUnpause) {
+      clearImmediate(pendingUnpause)
+      pendingUnpause = null
+    }
   }
 
   stream.pause()
@@ -464,6 +510,7 @@ CurlMimePart.prototype.setDataStream = function (
       }
 
       if (streamEnded) {
+        paused = false
         return null
       }
 
@@ -471,11 +518,23 @@ CurlMimePart.prototype.setDataStream = function (
 
       if (data === null) {
         if (streamEnded) {
+          paused = false
           return null
         }
+        paused = true
+        // Safety net: if the stream already emitted 'readable' before
+        // paused=true was set, that event's scheduleUnpause() was a no-op.
+        // Schedule one deferred retry to cover that race. The deduplication
+        // guard (pendingUnpause) ensures at most one pending retry at a time,
+        // so this does not create a tight busy-loop — the retry is a single
+        // deferred tick, not a continuous spin.
+        scheduleUnpause()
         return CurlReadFunc.Pause
       }
 
+      // Data is available: libcurl has resumed the handle, so clear paused
+      // to stop the retry loop in tryUnpause.
+      paused = false
       return data instanceof Buffer ? data : Buffer.from(data)
     },
     free: () => {
