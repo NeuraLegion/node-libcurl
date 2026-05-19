@@ -451,26 +451,36 @@ CurlMimePart.prototype.setDataStream = function (
 
   const onEnd = () => {
     streamEnded = true
-    cleanup()
-    // Unpause after cleanup so the handle is resumed even though we've
-    // torn down the listeners; must come after cleanup() so we don't
-    // cancel a pending unpause that was already scheduled.
-    tryUnpause()
+    // Remove listeners first so we don't re-enter these handlers.
+    removeListeners()
+    // Schedule a deferred unpause so libcurl has time to set isPausedRecv
+    // after processing the read callback's Pause return value before we
+    // try to resume it. Using scheduleUnpause (not tryUnpause) preserves
+    // the setImmediate deferral that is essential for correct ordering.
+    scheduleUnpause()
   }
 
   const onError = (err: Error) => {
     streamError = err
     streamEnded = true
-    cleanup()
-    // Same as onEnd: ensure the handle is unpaused so libcurl can
-    // observe the error via the read callback (which will throw).
-    tryUnpause()
+    removeListeners()
+    // Same deferral rationale as onEnd.
+    scheduleUnpause()
   }
 
-  const cleanup = () => {
+  // Removes stream event listeners only — does NOT cancel pending unpause
+  // so that an in-flight scheduleUnpause() from read() or onEnd/onError
+  // can still fire after the stream is done.
+  const removeListeners = () => {
     stream.off('readable', onReadable)
     stream.off('end', onEnd)
     stream.off('error', onError)
+  }
+
+  // Full cleanup: remove listeners AND cancel any pending unpause.
+  // Called only from free() when the curl handle is being torn down.
+  const cleanup = () => {
+    removeListeners()
     if (pendingUnpause) {
       clearImmediate(pendingUnpause)
       pendingUnpause = null
