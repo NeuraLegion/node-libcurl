@@ -424,34 +424,41 @@ CurlMimePart.prototype.setDataStream = function (
 ): typeof CurlMimePart.prototype {
   let streamEnded = false
   let streamError: Error | null = null
-  // Tracks whether the read callback has returned CurlReadFunc.Pause and an
-  // unpause has not yet been issued. Only call unpause() when this is true to
-  // avoid calling curl.pause() on a non-paused handle (which throws).
+  // Set to true when the read callback returns Pause; cleared on unpause.
+  // Prevents calling unpause() on a handle that isn't paused.
   let paused = false
+  let pendingUnpause: ReturnType<typeof setImmediate> | null = null
 
   const tryUnpause = () => {
+    pendingUnpause = null
     if (paused) {
       paused = false
       unpause()
     }
   }
 
+  const scheduleUnpause = () => {
+    if (!pendingUnpause) {
+      pendingUnpause = setImmediate(tryUnpause)
+    }
+  }
+
   const onReadable = () => {
-    // Defer so that if the read callback is running synchronously right now
-    // and is about to set paused=true, we see that on the next tick.
-    setImmediate(tryUnpause)
+    // Defer unpause so libcurl has finished processing the read callback
+    // result and marked the handle as paused before we resume it.
+    scheduleUnpause()
   }
 
   const onEnd = () => {
     streamEnded = true
-    setImmediate(tryUnpause)
+    scheduleUnpause()
     cleanup()
   }
 
   const onError = (err: Error) => {
     streamError = err
     streamEnded = true
-    setImmediate(tryUnpause)
+    scheduleUnpause()
     cleanup()
   }
 
@@ -459,6 +466,10 @@ CurlMimePart.prototype.setDataStream = function (
     stream.off('readable', onReadable)
     stream.off('end', onEnd)
     stream.off('error', onError)
+    if (pendingUnpause) {
+      clearImmediate(pendingUnpause)
+      pendingUnpause = null
+    }
   }
 
   stream.pause()
@@ -487,11 +498,10 @@ CurlMimePart.prototype.setDataStream = function (
           return null
         }
         paused = true
-        // Schedule a wakeup: if the stream already has data buffered (or has
-        // already ended), tryUnpause will have fired before paused=true was
-        // set and been a no-op. Scheduling here ensures we always attempt
-        // unpause after every pause, regardless of stream event ordering.
-        setImmediate(tryUnpause)
+        // Safety net: if the stream already had data when we checked but
+        // emitted 'readable' before paused=true was set, that event was a
+        // no-op. Schedule a retry to cover that race.
+        scheduleUnpause()
         return CurlReadFunc.Pause
       }
 
