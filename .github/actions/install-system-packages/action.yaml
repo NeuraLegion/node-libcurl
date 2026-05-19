@@ -1,32 +1,49 @@
 name: Install System Packages
-description: Installs required system packages on macOS and Linux (incl. Alpine)
+description: Installs required system packages on macOS and Linux (incl. Alpine, Rocky Linux 8)
 
 runs:
   using: composite
   steps:
-    - name: Detect alpine
-      id: detect-alpine
+    - name: Detect distro
+      id: detect-distro
       shell: bash
       run: |
         if [ -f /etc/alpine-release ]; then
-          echo "result=true" >> "$GITHUB_OUTPUT"
+          echo "distro=alpine" >> "$GITHUB_OUTPUT"
+        elif [ -f /etc/rocky-release ]; then
+          echo "distro=rocky" >> "$GITHUB_OUTPUT"
         else
-          echo "result=false" >> "$GITHUB_OUTPUT"
+          echo "distro=other" >> "$GITHUB_OUTPUT"
         fi
+
     - name: Install Needed packages on macOS
       if: runner.os == 'macOS'
       shell: bash
       run: |
         brew install coreutils wget automake libtool cmake gnu-sed m4 groff
 
-    - name: Install Needed packages on Linux
-      if: runner.os == 'Linux' && steps.detect-alpine.outputs.result == 'false'
+    - name: Install Needed packages on Linux (Debian/Ubuntu)
+      if: runner.os == 'Linux' && steps.detect-distro.outputs.distro == 'other'
       shell: bash
       run: |
         sudo apt-get update && sudo apt-get install -y cmake groff libtsan0
 
+    - name: Install Needed packages on Linux (Rocky Linux 8)
+      if: steps.detect-distro.outputs.distro == 'rocky'
+      shell: bash
+      run: |
+        dnf install -y cmake groff-base make gcc gcc-c++ autoconf automake libtool perl \
+          wget python3 python3-pip diffutils gcc-toolset-11 gcc-toolset-11-gcc-c++
+        dnf install -y --enablerepo=powertools libstdc++-static gcc-toolset-11-libstdc++-devel
+
+    - name: Enable GCC 11 toolset on Rocky Linux 8
+      if: steps.detect-distro.outputs.distro == 'rocky'
+      shell: bash
+      run: |
+        echo "/opt/rh/gcc-toolset-11/root/usr/bin" >> "$GITHUB_PATH"
+
     - name: Install Needed packages on Alpine
-      if: steps.detect-alpine.outputs.result == 'true'
+      if: steps.detect-distro.outputs.distro == 'alpine'
       shell: sh
       run: |
         apk --no-cache add --virtual .rundeps \

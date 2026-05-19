@@ -41,8 +41,14 @@ jobs:
       attestations: write
       contents: write
       packages: write
-    runs-on: ${{ matrix.os == 'alpine' && 'ubuntu-22.04' || matrix.os }}
-    container: ${{ matrix.os == 'alpine' && format('node:{0}-alpine3.21', matrix.node) || '' }}
+    runs-on: >-
+      ${{ (matrix.os == 'alpine' || matrix.os == 'rocky-linux-8')
+          && 'ubuntu-22.04'
+          || matrix.os }}
+    container: >-
+      ${{ matrix.os == 'alpine'        && format('node:{0}-alpine3.21', matrix.node)
+       || matrix.os == 'rocky-linux-8' && format('rockylinux:8')
+       || '' }}
     needs:
       - config
       - lint-and-tsc
@@ -54,7 +60,7 @@ jobs:
           - ''
         os:
           - macos-15
-          - ubuntu-22.04
+          - rocky-linux-8
           - ubuntu-24.04-arm
           - alpine
           - windows-2025
@@ -69,7 +75,7 @@ jobs:
             os: macos-15
             node: 24
           - electron-version: 38.6.0
-            os: ubuntu-22.04
+            os: rocky-linux-8
             node: 24
           - electron-version: 38.6.0
             os: windows-2025
@@ -78,7 +84,7 @@ jobs:
             os: macos-15
             node: 24
           - electron-version: 39.1.1
-            os: ubuntu-22.04
+            os: rocky-linux-8
             node: 24
           - electron-version: 39.1.1
             os: windows-2025
@@ -97,6 +103,17 @@ jobs:
         shell: sh
         run: |
           apk add --no-cache git bash
+
+      - name: Install Node.js (Rocky Linux 8)
+        if: matrix.os == 'rocky-linux-8'
+        run: |
+          dnf install -y curl git ca-certificates
+          curl -fsSL https://rpm.nodesource.com/gpgkey/ns-operations-public.key \
+            -o /etc/pki/rpm-gpg/ns-operations-public.key
+          rpm --import /etc/pki/rpm-gpg/ns-operations-public.key
+          printf '[nodesource-nodejs]\nname=Node.js Packages for Linux RPM based distros - x86_64\nbaseurl=https://rpm.nodesource.com/pub_${{ matrix.node }}.x/nodistro/nodejs/x86_64\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/ns-operations-public.key\nenabled=1\nmodule_hotfixes=1\n' \
+            > /etc/yum.repos.d/nodesource-el8.repo
+          dnf install -y nodejs
 
       - name: Checkout
         uses: actions/checkout@v5
@@ -132,7 +149,7 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: '${{ matrix.node }}'
-          skip-node-setup: ${{ matrix.os == 'alpine' && 'true' || 'false' }}
+          skip-node-setup: ${{ (matrix.os == 'alpine' || matrix.os == 'rocky-linux-8') && 'true' || 'false' }}
 
       - name: Setup Libcurl Cache (Restore, Non-Windows)
         if: runner.os != 'Windows'
