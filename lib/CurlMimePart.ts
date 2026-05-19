@@ -451,15 +451,20 @@ CurlMimePart.prototype.setDataStream = function (
 
   const onEnd = () => {
     streamEnded = true
-    scheduleUnpause()
     cleanup()
+    // Unpause after cleanup so the handle is resumed even though we've
+    // torn down the listeners; must come after cleanup() so we don't
+    // cancel a pending unpause that was already scheduled.
+    tryUnpause()
   }
 
   const onError = (err: Error) => {
     streamError = err
     streamEnded = true
-    scheduleUnpause()
     cleanup()
+    // Same as onEnd: ensure the handle is unpaused so libcurl can
+    // observe the error via the read callback (which will throw).
+    tryUnpause()
   }
 
   const cleanup = () => {
@@ -498,10 +503,13 @@ CurlMimePart.prototype.setDataStream = function (
           return null
         }
         paused = true
-        // Safety net: if the stream already had data when we checked but
-        // emitted 'readable' before paused=true was set, that event was a
-        // no-op. Schedule a retry to cover that race.
-        scheduleUnpause()
+        // Safety net: schedule unpause only if the stream already has
+        // buffered data or has ended. This avoids a busy pause→unpause→pause
+        // loop for slow streams where data isn't available yet; the
+        // 'readable'/'end'/'error' events will drive unpause in those cases.
+        if (streamEnded || stream.readableLength > 0) {
+          scheduleUnpause()
+        }
         return CurlReadFunc.Pause
       }
 
