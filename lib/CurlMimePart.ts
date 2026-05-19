@@ -486,6 +486,11 @@ CurlMimePart.prototype.setDataStream = function (
           return null
         }
         paused = true
+        // Schedule a wakeup: if the stream already has data buffered (or has
+        // already ended), tryUnpause will have fired before paused=true was
+        // set and been a no-op. Scheduling here ensures we always attempt
+        // unpause after every pause, regardless of stream event ordering.
+        setImmediate(tryUnpause)
         return CurlReadFunc.Pause
       }
 
