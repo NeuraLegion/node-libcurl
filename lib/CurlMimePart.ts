@@ -424,7 +424,8 @@ CurlMimePart.prototype.setDataStream = function (
 ): typeof CurlMimePart.prototype {
   let streamEnded = false
   let streamError: Error | null = null
-  // Set to true when the read callback returns Pause; cleared on unpause.
+  // Set to true when the read callback returns Pause; cleared only when
+  // read() successfully returns data (confirming libcurl resumed the handle).
   // Prevents calling unpause() on a handle that isn't paused.
   let paused = false
   let pendingUnpause: ReturnType<typeof setImmediate> | null = null
@@ -432,8 +433,14 @@ CurlMimePart.prototype.setDataStream = function (
   const tryUnpause = () => {
     pendingUnpause = null
     if (paused) {
-      paused = false
+      // Call the user-provided unpause callback. If isPausedRecv is still
+      // false (libcurl hasn't finished processing the Pause return value yet),
+      // the callback will be a no-op and we must retry. We do NOT clear
+      // `paused` here — it is cleared only when read() successfully returns
+      // data, which confirms libcurl has actually resumed. Re-schedule so
+      // we keep trying until libcurl resumes the handle.
       unpause()
+      scheduleUnpause()
     }
   }
 
@@ -503,6 +510,7 @@ CurlMimePart.prototype.setDataStream = function (
       }
 
       if (streamEnded) {
+        paused = false
         return null
       }
 
@@ -510,6 +518,7 @@ CurlMimePart.prototype.setDataStream = function (
 
       if (data === null) {
         if (streamEnded) {
+          paused = false
           return null
         }
         paused = true
@@ -523,6 +532,9 @@ CurlMimePart.prototype.setDataStream = function (
         return CurlReadFunc.Pause
       }
 
+      // Data is available: libcurl has resumed the handle, so clear paused
+      // to stop the retry loop in tryUnpause.
+      paused = false
       return data instanceof Buffer ? data : Buffer.from(data)
     },
     free: () => {
