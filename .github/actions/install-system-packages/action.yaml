@@ -32,7 +32,9 @@ runs:
       if: steps.detect-distro.outputs.distro == 'rocky'
       shell: bash
       run: |
-        dnf install -y cmake groff make gcc gcc-c++ autoconf automake libtool perl \
+        dnf install -y dnf-plugins-core
+        dnf config-manager --set-enabled powertools
+        dnf install -y cmake groff-base make gcc gcc-c++ autoconf automake libtool perl \
           wget python3 python3-pip \
           libstdc++-static
 

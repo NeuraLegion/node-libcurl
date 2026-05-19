@@ -79,18 +79,11 @@ jobs:
         if: matrix.os == 'rocky-linux-8'
         run: |
           dnf install -y curl git ca-certificates
-          curl -fsSL https://rpm.nodesource.com/pub/el/NODESOURCE-GPG-SIGNING-KEY-EL \
-            -o /etc/pki/rpm-gpg/NODESOURCE-GPG-SIGNING-KEY-EL
-          rpm --import /etc/pki/rpm-gpg/NODESOURCE-GPG-SIGNING-KEY-EL
-          cat > /etc/yum.repos.d/nodesource-el8.repo << 'EOF'
-          [nodesource-nodejs]
-          name=Node.js Packages for Linux RPM based distros - x86_64
-          baseurl=https://rpm.nodesource.com/pub_${{ matrix.node }}.x/el/8/x86_64
-          gpgcheck=1
-          gpgkey=file:///etc/pki/rpm-gpg/NODESOURCE-GPG-SIGNING-KEY-EL
-          enabled=1
-          module_hotfixes=1
-          EOF
+          curl -fsSL https://rpm.nodesource.com/gpgkey/ns-operations-public.key \
+            -o /etc/pki/rpm-gpg/ns-operations-public.key
+          rpm --import /etc/pki/rpm-gpg/ns-operations-public.key
+          printf '[nodesource-nodejs]\nname=Node.js Packages for Linux RPM based distros - x86_64\nbaseurl=https://rpm.nodesource.com/pub_${{ matrix.node }}.x/nodistro/nodejs/x86_64\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/ns-operations-public.key\nenabled=1\nmodule_hotfixes=1\n' \
+            > /etc/yum.repos.d/nodesource-el8.repo
           dnf install -y nodejs
 
       - name: Checkout
