@@ -166,10 +166,6 @@
           ],
         }],
         ['OS=="linux"', {
-          'ldflags': [
-            '-static-libstdc++',
-            '-static-libgcc',
-          ],
           'conditions': [
             ['curl_static_build=="true"', {
               # pretty sure cflags adds that
