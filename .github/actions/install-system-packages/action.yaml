@@ -1,43 +1,32 @@
 name: Install System Packages
-description: Installs required system packages on macOS and Linux (incl. Alpine, Rocky Linux 8)
+description: Installs required system packages on macOS and Linux (incl. Alpine)
 
 runs:
   using: composite
   steps:
-    - name: Detect distro
-      id: detect-distro
+    - name: Detect alpine
+      id: detect-alpine
       shell: bash
       run: |
         if [ -f /etc/alpine-release ]; then
-          echo "distro=alpine" >> "$GITHUB_OUTPUT"
-        elif [ -f /etc/rocky-release ]; then
-          echo "distro=rocky" >> "$GITHUB_OUTPUT"
+          echo "result=true" >> "$GITHUB_OUTPUT"
         else
-          echo "distro=other" >> "$GITHUB_OUTPUT"
+          echo "result=false" >> "$GITHUB_OUTPUT"
         fi
-
     - name: Install Needed packages on macOS
       if: runner.os == 'macOS'
       shell: bash
       run: |
         brew install coreutils wget automake libtool cmake gnu-sed m4 groff
 
-    - name: Install Needed packages on Linux (Debian/Ubuntu)
-      if: runner.os == 'Linux' && steps.detect-distro.outputs.distro == 'other'
+    - name: Install Needed packages on Linux
+      if: runner.os == 'Linux' && steps.detect-alpine.outputs.result == 'false'
       shell: bash
       run: |
         sudo apt-get update && sudo apt-get install -y cmake groff libtsan0
 
-    - name: Install Needed packages on Linux (Rocky Linux 8)
-      if: steps.detect-distro.outputs.distro == 'rocky'
-      shell: bash
-      run: |
-        dnf install -y cmake groff-base make gcc gcc-c++ autoconf automake libtool perl \
-          wget python3 python3-pip
-        dnf install -y --enablerepo=powertools libstdc++-static
-
     - name: Install Needed packages on Alpine
-      if: steps.detect-distro.outputs.distro == 'alpine'
+      if: steps.detect-alpine.outputs.result == 'true'
       shell: sh
       run: |
         apk --no-cache add --virtual .rundeps \
