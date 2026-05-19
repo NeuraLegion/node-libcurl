@@ -49,9 +49,13 @@ if [ -n "${OPENSSL_BUILD_FOLDER:-}" ]; then
   LDFLAGS_VALUE="-Wl,-rpath,$OPENSSL_BUILD_FOLDER/lib"
 fi
 
+# Export so all pkg-config sub-invocations inside ./configure pick up our custom OpenSSL.
+# Inline assignment is not sufficient on some distros (e.g. Rocky Linux 8) where the system
+# pkg-config path is appended rather than replaced.
+export PKG_CONFIG_PATH="$PKG_CONFIG_PATH_VALUE"
+export LDFLAGS="$LDFLAGS_VALUE"
+
 # Release - Static
-PKG_CONFIG_PATH="$PKG_CONFIG_PATH_VALUE" \
-LDFLAGS="$LDFLAGS_VALUE" \
 ./configure \
   --prefix=$build_folder \
   --enable-lib-only \
