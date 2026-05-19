@@ -503,13 +503,13 @@ CurlMimePart.prototype.setDataStream = function (
           return null
         }
         paused = true
-        // Safety net: schedule unpause only if the stream already has
-        // buffered data or has ended. This avoids a busy pause→unpause→pause
-        // loop for slow streams where data isn't available yet; the
-        // 'readable'/'end'/'error' events will drive unpause in those cases.
-        if (streamEnded || stream.readableLength > 0) {
-          scheduleUnpause()
-        }
+        // Safety net: if the stream already emitted 'readable' before
+        // paused=true was set, that event's scheduleUnpause() was a no-op.
+        // Schedule one deferred retry to cover that race. The deduplication
+        // guard (pendingUnpause) ensures at most one pending retry at a time,
+        // so this does not create a tight busy-loop — the retry is a single
+        // deferred tick, not a continuous spin.
+        scheduleUnpause()
         return CurlReadFunc.Pause
       }
 
