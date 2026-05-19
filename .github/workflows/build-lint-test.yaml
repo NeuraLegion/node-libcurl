@@ -22,8 +22,14 @@ jobs:
     uses: ./.github/workflows/reusable-lint-tsc.yaml
 
   build-and-test:
-    runs-on: ${{ matrix.os == 'alpine' && 'ubuntu-22.04' || matrix.os }}
-    container: ${{ matrix.os == 'alpine' && format('node:{0}-alpine3.21', matrix.node) || '' }}
+    runs-on: >-
+      ${{ (matrix.os == 'alpine' || matrix.os == 'rocky-linux-8')
+          && 'ubuntu-22.04'
+          || matrix.os }}
+    container: >-
+      ${{ matrix.os == 'alpine'        && format('node:{0}-alpine3.21', matrix.node)
+       || matrix.os == 'rocky-linux-8' && format('rockylinux:8')
+       || '' }}
     needs: config
     strategy:
       fail-fast: false
@@ -32,7 +38,7 @@ jobs:
           - ''
         os:
           - macos-15
-          - ubuntu-22.04
+          - rocky-linux-8
           - ubuntu-24.04-arm
           - alpine
           - windows-2025
@@ -44,12 +50,12 @@ jobs:
           - 22
         include:
           # we only want to record coverage in one of the jobs, in this case, the one for the latest stable Node.js version
-          - os: ubuntu-22.04
+          - os: rocky-linux-8
             libcurl-release: ${{ needs.config.outputs.latest-libcurl-release }}
             node: 24
             record-coverage: true
           # we also want to build a job for old libcurl versions
-          - os: ubuntu-22.04
+          - os: rocky-linux-8
             libcurl-release: ${{ needs.config.outputs.oldest-libcurl-release }}
             node: 24
     env:
@@ -69,6 +75,24 @@ jobs:
         run: |
           apk add --no-cache git bash
 
+      - name: Install Node.js (Rocky Linux 8)
+        if: matrix.os == 'rocky-linux-8'
+        run: |
+          dnf install -y curl git ca-certificates
+          curl -fsSL https://rpm.nodesource.com/pub/el/NODESOURCE-GPG-SIGNING-KEY-EL \
+            -o /etc/pki/rpm-gpg/NODESOURCE-GPG-SIGNING-KEY-EL
+          rpm --import /etc/pki/rpm-gpg/NODESOURCE-GPG-SIGNING-KEY-EL
+          cat > /etc/yum.repos.d/nodesource-el8.repo << 'EOF'
+          [nodesource-nodejs]
+          name=Node.js Packages for Linux RPM based distros - x86_64
+          baseurl=https://rpm.nodesource.com/pub_${{ matrix.node }}.x/el/8/x86_64
+          gpgcheck=1
+          gpgkey=file:///etc/pki/rpm-gpg/NODESOURCE-GPG-SIGNING-KEY-EL
+          enabled=1
+          module_hotfixes=1
+          EOF
+          dnf install -y nodejs
+
       - name: Checkout
         uses: actions/checkout@v5
         with:
@@ -87,7 +111,7 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: '${{ matrix.node }}'
-          skip-node-setup: ${{ matrix.os == 'alpine' && 'true' || 'false' }}
+          skip-node-setup: ${{ (matrix.os == 'alpine' || matrix.os == 'rocky-linux-8') && 'true' || 'false' }}
 
       - name: Setup Libcurl Cache (Restore, Non-Windows)
         if: runner.os != 'Windows'
