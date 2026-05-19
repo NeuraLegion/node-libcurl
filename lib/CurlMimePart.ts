@@ -426,21 +426,19 @@ CurlMimePart.prototype.setDataStream = function (
   let streamError: Error | null = null
 
   const onReadable = () => {
-    // Defer the unpause so it fires after the current read callback has
-    // returned and libcurl has had a chance to set isPausedRecv = true.
-    setImmediate(unpause)
+    unpause()
   }
 
   const onEnd = () => {
     streamEnded = true
-    setImmediate(unpause)
+    unpause()
     cleanup()
   }
 
   const onError = (err: Error) => {
     streamError = err
     streamEnded = true
-    setImmediate(unpause)
+    unpause()
     cleanup()
   }
 
