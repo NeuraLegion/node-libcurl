@@ -46,19 +46,15 @@ PKG_CONFIG_PATH_VALUE=$(IFS=:; echo "${PKG_CONFIG_PATH_PARTS[*]}")
 # Export PKG_CONFIG_PATH so sub-invocations inside ./configure pick up our custom deps.
 export PKG_CONFIG_PATH="$PKG_CONFIG_PATH_VALUE"
 
-# On some distros (e.g. Rocky Linux 8), pkg-config may still resolve system OpenSSL 1.1.1
-# even with PKG_CONFIG_PATH set, because the system paths are appended by pkg-config wrappers.
-# Pass OPENSSL_CFLAGS and OPENSSL_LIBS explicitly to bypass pkg-config for OpenSSL detection.
-if [ -n "${OPENSSL_BUILD_FOLDER:-}" ]; then
-  export OPENSSL_CFLAGS="-I$OPENSSL_BUILD_FOLDER/include"
-  export OPENSSL_LIBS="-L$OPENSSL_BUILD_FOLDER/lib -lssl -lcrypto"
-  export LDFLAGS="-Wl,-rpath,$OPENSSL_BUILD_FOLDER/lib"
-fi
+# On Rocky Linux 8 (and other distros with pkgconf), PKG_CONFIG_PATH only prepends to the
+# default search path — system openssl 1.1.1 from /usr/lib64/pkgconfig still wins.
+# PKG_CONFIG_LIBDIR *replaces* the default search path entirely, preventing system packages
+# from being found. We include the system path explicitly so other deps still resolve.
+SYSTEM_PKG_CONFIG_LIBDIR="${PKG_CONFIG_LIBDIR:-/usr/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig}"
+export PKG_CONFIG_LIBDIR="${PKG_CONFIG_PATH_VALUE}:${SYSTEM_PKG_CONFIG_LIBDIR}"
 
-# Similarly bypass pkg-config for nghttp3 if available
-if [ -n "${NGHTTP3_BUILD_FOLDER:-}" ]; then
-  export LIBNGHTTP3_CFLAGS="-I$NGHTTP3_BUILD_FOLDER/include"
-  export LIBNGHTTP3_LIBS="-L$NGHTTP3_BUILD_FOLDER/lib -lnghttp3"
+if [ -n "${OPENSSL_BUILD_FOLDER:-}" ]; then
+  export LDFLAGS="-Wl,-rpath,$OPENSSL_BUILD_FOLDER/lib"
 fi
 
 # Release - Static
