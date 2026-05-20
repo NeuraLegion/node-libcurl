@@ -55,6 +55,13 @@ export PKG_CONFIG_LIBDIR="${PKG_CONFIG_PATH_VALUE}:${SYSTEM_PKG_CONFIG_LIBDIR}"
 
 if [ -n "${OPENSSL_BUILD_FOLDER:-}" ]; then
   export LDFLAGS="-Wl,-rpath,$OPENSSL_BUILD_FOLDER/lib"
+  # Force pkg-config to use our static libs directly so the AC_LINK_IFELSE
+  # in ngtcp2's configure does not accidentally pick up the system's shared
+  # libssl (e.g. OpenSSL 1.1.1 on Rocky Linux 8) via the linker search path.
+  # When OPENSSL_LIBS / OPENSSL_CFLAGS are already set in the environment,
+  # PKG_CHECK_MODULES honours them and skips the pkg-config query entirely.
+  export OPENSSL_LIBS="$OPENSSL_BUILD_FOLDER/lib/libssl.a $OPENSSL_BUILD_FOLDER/lib/libcrypto.a -ldl -pthread"
+  export OPENSSL_CFLAGS="-I$OPENSSL_BUILD_FOLDER/include"
 fi
 
 # Release - Static
