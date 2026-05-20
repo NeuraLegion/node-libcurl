@@ -186,6 +186,13 @@ openssl_params=()
 if [[ -f /etc/alpine-release ]]; then
     openssl_params+=(no-async)
 fi
+# enable-quic is required for OpenSSL >= 3.2 to expose QUIC APIs (SSL_set_quic_tls_cbs)
+# needed by ngtcp2's ossl crypto backend; not built-in by default
+is_openssl_ge_3_2_0=0
+(printf '%s\n%s' "3.2.0" "$OPENSSL_RELEASE" | $gsort -CV) && is_openssl_ge_3_2_0=1 || true
+if [[ "$is_openssl_ge_3_2_0" == "1" ]] && [[ "$(uname)" != "Darwin" ]]; then
+    openssl_params+=(enable-quic)
+fi
 echo "Building openssl v$OPENSSL_RELEASE"
 # Weird concatenation of the array with itself is needed
 #  because on bash <= 4, using [@] to access an array with 0 elements
