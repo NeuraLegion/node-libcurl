@@ -33,8 +33,11 @@ runs:
       shell: bash
       run: |
         dnf install -y cmake groff-base make gcc gcc-c++ autoconf automake libtool perl \
-          wget python3 python3-pip diffutils gcc-toolset-11 gcc-toolset-11-gcc-c++
+          wget python38 python38-pip diffutils gcc-toolset-11 gcc-toolset-11-gcc-c++
         dnf install -y --enablerepo=powertools libstdc++-static gcc-toolset-11-libstdc++-devel
+        # node-gyp 11+ requires Python >= 3.7; Rocky Linux 8 ships python3 as 3.6.8.
+        # Make python38 the default python3 so node-gyp finds a compatible version.
+        alternatives --set python3 /usr/bin/python3.8
 
     - name: Enable GCC 11 toolset on Rocky Linux 8
       if: steps.detect-distro.outputs.distro == 'rocky'
