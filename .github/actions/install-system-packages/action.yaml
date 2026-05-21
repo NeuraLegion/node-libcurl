@@ -23,7 +23,7 @@ runs:
       if: runner.os == 'Linux' && steps.detect-alpine.outputs.result == 'false'
       shell: bash
       run: |
-        sudo apt-get update && sudo apt-get install -y cmake groff libtsan0
+        sudo apt-get update && sudo apt-get install -y cmake groff libtsan0 libkrb5-dev
 
     - name: Install Needed packages on Alpine
       if: steps.detect-alpine.outputs.result == 'true'
@@ -36,4 +36,5 @@ runs:
         python3 py3-pip make g++ \
         perl linux-headers \
         autoconf automake libtool \
+        krb5-dev \
         texinfo flex bison build-base libedit-dev mandoc-soelim zlib zlib-dev zlib-static
