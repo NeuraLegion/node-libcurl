@@ -187,6 +187,7 @@ jobs:
   # TODO: remove this job once Rocky Linux 8 prebuilt compat is confirmed stable
   verify-prebuilt-linux-compat:
     name: Verify prebuilt addon runs on ${{ matrix.distro }}
+    if: ${{ !cancelled() }}
     needs:
       - config
       - build-and-test
