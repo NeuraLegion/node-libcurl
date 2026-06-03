@@ -14,7 +14,14 @@
     'node_libcurl_debug%': 'false',
     'node_libcurl_asan_debug%': 'false',
     'node_libcurl_cpp_std%': 'c++20',
-    'macos_universal_build%': 'false'
+    'macos_universal_build%': 'false',
+    # When true, statically links libstdc++ and libgcc into the addon so the
+    # binary does not depend on the host's runtime version.  Should only be
+    # set in CI/release builds that produce distributable prebuilts; enabling
+    # it for developer source builds requires the static runtime packages
+    # (e.g. libstdc++-static on RHEL/Rocky, libstdc++-dev on Ubuntu) to be
+    # installed, which is not a standard developer requirement.
+    'node_libcurl_static_runtime%': 'false'
   },
   'targets': [
     {
@@ -166,11 +173,13 @@
           ],
         }],
         ['OS=="linux"', {
-          'ldflags': [
-            '-static-libstdc++',
-            '-static-libgcc',
-          ],
           'conditions': [
+            ['node_libcurl_static_runtime=="true"', {
+              'ldflags': [
+                '-static-libstdc++',
+                '-static-libgcc',
+              ],
+            }],
             ['curl_static_build=="true"', {
               # pretty sure cflags adds that
               'defines': [

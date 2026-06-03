@@ -50,8 +50,13 @@ export PKG_CONFIG_PATH="$PKG_CONFIG_PATH_VALUE"
 # default search path — system openssl 1.1.1 from /usr/lib64/pkgconfig still wins.
 # PKG_CONFIG_LIBDIR *replaces* the default search path entirely, preventing system packages
 # from being found. We include the system path explicitly so other deps still resolve.
-SYSTEM_PKG_CONFIG_LIBDIR="${PKG_CONFIG_LIBDIR:-/usr/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig}"
-export PKG_CONFIG_LIBDIR="${PKG_CONFIG_PATH_VALUE}:${SYSTEM_PKG_CONFIG_LIBDIR}"
+# This is only needed on Linux; macOS and other platforms use their own pkg-config paths.
+if [[ "$(uname)" == "Linux" ]]; then
+  SYSTEM_PKG_CONFIG_LIBDIR="${PKG_CONFIG_LIBDIR:-/usr/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig}"
+  # Avoid a leading ':' (which pkg-config treats as the current directory) when
+  # PKG_CONFIG_PATH_VALUE is empty.
+  export PKG_CONFIG_LIBDIR="${PKG_CONFIG_PATH_VALUE:+$PKG_CONFIG_PATH_VALUE:}${SYSTEM_PKG_CONFIG_LIBDIR}"
+fi
 
 if [ -n "${OPENSSL_BUILD_FOLDER:-}" ]; then
   export LDFLAGS="-Wl,-rpath,$OPENSSL_BUILD_FOLDER/lib"

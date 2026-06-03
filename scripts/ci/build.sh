@@ -442,6 +442,12 @@ export npm_config_curl_static_build="true"
 export npm_config_node_libcurl_cpp_std="$NODE_LIBCURL_CPP_STD"
 export npm_config_build_from_source="true"
 export npm_config_macos_universal_build="${MACOS_UNIVERSAL_BUILD:-false}"
+# Enable static runtime linking on Linux to produce a portable prebuilt binary that
+# does not depend on the host's libstdc++/libgcc version (e.g. glibc 2.28 targets).
+# Kept off by default in binding.gyp so developer source builds are not affected.
+if [[ "$(uname)" == "Linux" ]]; then
+  export npm_config_node_libcurl_static_runtime="true"
+fi
 export npm_config_runtime="$runtime"
 export npm_config_dist_url="$dist_url"
 export npm_config_target="$target"

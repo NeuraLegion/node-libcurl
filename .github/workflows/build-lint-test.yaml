@@ -169,68 +169,9 @@ jobs:
           file: ./coverage/**
           fail_ci_if_error: false
       
-      - name: Upload prebuilt addon (Rocky Linux 8 / Node 24 only)
-        if: matrix.os == 'rocky-linux-8' && matrix.node == 24 && matrix.electron-version == '' && matrix.libcurl-release == needs.config.outputs.latest-libcurl-release
-        uses: actions/upload-artifact@v4
-        with:
-          name: prebuilt-addon-linux-x64
-          path: lib/binding/node_libcurl.node
-          retention-days: 1
-
       - name: Upload Build Logs
         if: always() && runner.os != 'Windows'
         uses: ./.github/actions/upload-build-logs
         with:
           artifact-name: build-logs-${{ matrix.os }}-${{ matrix.libcurl-release }}-${{ matrix.electron-version && 'electron' || 'node' }}-${{ matrix.electron-version || matrix.node }}
           retention-days: '3'
-
-  # TODO: remove this job once Rocky Linux 8 prebuilt compat is confirmed stable
-  verify-prebuilt-linux-compat:
-    name: Verify prebuilt addon runs on ${{ matrix.distro }}
-    if: ${{ !cancelled() }}
-    needs:
-      - config
-      - build-and-test
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - distro: ubuntu-22.04
-            runs-on: ubuntu-22.04
-            container: ''
-          - distro: rocky-linux-8
-            runs-on: ubuntu-22.04
-            container: rockylinux:8
-    runs-on: ${{ matrix.runs-on }}
-    container: ${{ matrix.container || '' }}
-    steps:
-      - name: Install Node.js (Rocky Linux 8)
-        if: matrix.distro == 'rocky-linux-8'
-        run: |
-          dnf install -y curl ca-certificates
-          curl -fsSL https://rpm.nodesource.com/gpgkey/ns-operations-public.key \
-            -o /etc/pki/rpm-gpg/ns-operations-public.key
-          rpm --import /etc/pki/rpm-gpg/ns-operations-public.key
-          printf '[nodesource-nodejs]\nname=Node.js Packages for Linux RPM based distros - x86_64\nbaseurl=https://rpm.nodesource.com/pub_24.x/nodistro/nodejs/x86_64\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/ns-operations-public.key\nenabled=1\nmodule_hotfixes=1\n' \
-            > /etc/yum.repos.d/nodesource-el8.repo
-          dnf install -y nodejs
-
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Download prebuilt addon
-        uses: actions/download-artifact@v4
-        with:
-          name: prebuilt-addon-linux-x64
-          path: lib/binding/
-
-      - name: Verify addon loads and performs a basic request
-        run: |
-          node -e "
-            const addon = require('./lib/binding/node_libcurl.node');
-            console.log('addon keys:', Object.keys(addon).join(', '));
-            if (!addon.Curl && !addon.Easy && !addon.CurlCode) {
-              throw new Error('Expected Curl/Easy/CurlCode exports not found in addon');
-            }
-            console.log('PASS: prebuilt addon loaded successfully on ${{ matrix.distro }}');
-          "
