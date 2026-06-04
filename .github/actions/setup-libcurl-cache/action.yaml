@@ -33,11 +33,21 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Detect libc variant
+      id: detect-libc
+      shell: sh
+      run: |
+        if [ -f /etc/alpine-release ]; then
+          echo "variant=musl" >> "$GITHUB_OUTPUT"
+        else
+          echo "variant=glibc" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Cache Key
       id: cache-key
       shell: sh
       run: |
-        echo "cache-key=${{ inputs.cache-key-prefix }}${{ runner.os }}${{ runner.arch == 'ARM64' && '-arm64' || '' }}-libcurl-${{ inputs.libcurl-release }}-deps-cache-${{ inputs.electron-version && 'electron' || 'node' }}-${{ inputs.electron-version || inputs.node-version }}" >> $GITHUB_OUTPUT
+        echo "cache-key=${{ inputs.cache-key-prefix }}${{ runner.os }}${{ runner.arch == 'ARM64' && '-arm64' || '' }}-${{ steps.detect-libc.outputs.variant }}-libcurl-${{ inputs.libcurl-release }}-deps-cache-${{ inputs.electron-version && 'electron' || 'node' }}-${{ inputs.electron-version || inputs.node-version }}" >> $GITHUB_OUTPUT
     # Restore-only mode (for workflows that save separately)
     - name: Restore libcurl deps cache
       if: inputs.mode == 'restore-only'

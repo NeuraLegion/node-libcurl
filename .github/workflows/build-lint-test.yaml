@@ -22,9 +22,14 @@ jobs:
     uses: ./.github/workflows/reusable-lint-tsc.yaml
 
   build-and-test:
+    # alpine-arm64 runs on the Ubuntu arm64 host WITHOUT a container; the build
+    # and test steps use an explicit `docker run` instead because GitHub Actions
+    # JS actions (checkout, cache, etc.) are not supported inside Alpine
+    # containers on arm64.
     runs-on: >-
       ${{ (matrix.os == 'alpine' || matrix.os == 'rocky-linux-8')
           && 'ubuntu-22.04'
+          || matrix.os == 'alpine-arm64' && 'ubuntu-24.04-arm'
           || matrix.os }}
     container: >-
       ${{ matrix.os == 'alpine'        && format('node:{0}-alpine3.21', matrix.node)
@@ -41,6 +46,7 @@ jobs:
           - rocky-linux-8
           - ubuntu-24.04-arm
           - alpine
+          - alpine-arm64
           - windows-2025
         libcurl-release:
           - ${{ needs.config.outputs.latest-libcurl-release }}
@@ -70,7 +76,7 @@ jobs:
       GIT_REF_NAME: ${{ github.ref_name }}
     steps:
       - name: Install updated git (Alpine)
-        if: matrix.os == 'alpine'
+        if: matrix.os == 'alpine' || matrix.os == 'alpine-arm64'
         shell: sh
         run: |
           apk add --no-cache git bash
@@ -104,7 +110,7 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: '${{ matrix.node }}'
-          skip-node-setup: ${{ (matrix.os == 'alpine' || matrix.os == 'rocky-linux-8') && 'true' || 'false' }}
+          skip-node-setup: ${{ (matrix.os == 'alpine' || matrix.os == 'rocky-linux-8' || matrix.os == 'alpine-arm64') && 'true' || 'false' }}
 
       - name: Setup Libcurl Cache (Restore, Non-Windows)
         if: runner.os != 'Windows'
