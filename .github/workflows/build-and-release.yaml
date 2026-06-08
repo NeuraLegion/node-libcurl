@@ -189,7 +189,7 @@ jobs:
             -e GIT_COMMIT \
             -e GIT_REF_NAME \
             -e HOME=/root \
-            -e PNPM_VERSION \
+            -e PNPM_VERSION="${PNPM_VERSION}" \
             -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
             -v "${HOME}/deps:/root/deps" \
             -v "${HOME}/.node-gyp:/root/.node-gyp" \

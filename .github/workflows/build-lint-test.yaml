@@ -148,7 +148,7 @@ jobs:
             -e GIT_COMMIT \
             -e GIT_REF_NAME \
             -e HOME=/root \
-            -e PNPM_VERSION \
+            -e PNPM_VERSION="${PNPM_VERSION}" \
             -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
             -v "${HOME}/deps:/root/deps" \
             -v "${HOME}/.node-gyp:/root/.node-gyp" \
@@ -206,7 +206,7 @@ jobs:
           PNPM_VERSION=$(node -e "const {packageManager}=require('./package.json');console.log(packageManager.split('@')[1])")
           docker run --rm \
             -e HOME=/root \
-            -e PNPM_VERSION \
+            -e PNPM_VERSION="${PNPM_VERSION}" \
             -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
             -w "${GITHUB_WORKSPACE}" \
             "node:${{ matrix.node }}-alpine3.21" \
