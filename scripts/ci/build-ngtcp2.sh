@@ -43,31 +43,20 @@ fi
 # Join array with colons
 PKG_CONFIG_PATH_VALUE=$(IFS=:; echo "${PKG_CONFIG_PATH_PARTS[*]}")
 
-# Export PKG_CONFIG_PATH so sub-invocations inside ./configure pick up our custom deps.
+# Export PKG_CONFIG_PATH so sub-invocations inside ./configure pick up our custom deps
+# (e.g. nghttp3). OpenSSL is handled via OPENSSL_LIBS/OPENSSL_CFLAGS below, which causes
+# ngtcp2's PKG_CHECK_MODULES to skip the pkg-config query for OpenSSL entirely — so
+# PKG_CONFIG_LIBDIR manipulation is not needed to prevent system OpenSSL from winning.
 export PKG_CONFIG_PATH="$PKG_CONFIG_PATH_VALUE"
-
-# On Rocky Linux 8 (and other distros with pkgconf), PKG_CONFIG_PATH only prepends to the
-# default search path — system openssl 1.1.1 from /usr/lib64/pkgconfig still wins.
-# PKG_CONFIG_LIBDIR *replaces* the default search path entirely, preventing system packages
-# from being found. We include the system path explicitly so other deps still resolve.
-# This is only needed on Linux; macOS and other platforms use their own pkg-config paths.
-if [[ "$(uname)" == "Linux" ]]; then
-  SYSTEM_PKG_CONFIG_LIBDIR="${PKG_CONFIG_LIBDIR:-/usr/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig}"
-  # Avoid a leading ':' (which pkg-config treats as the current directory) when
-  # PKG_CONFIG_PATH_VALUE is empty.
-  export PKG_CONFIG_LIBDIR="${PKG_CONFIG_PATH_VALUE:+$PKG_CONFIG_PATH_VALUE:}${SYSTEM_PKG_CONFIG_LIBDIR}"
-fi
 
 if [ -n "${OPENSSL_BUILD_FOLDER:-}" ]; then
   export LDFLAGS="-Wl,-rpath,$OPENSSL_BUILD_FOLDER/lib"
   export OPENSSL_CFLAGS="-I$OPENSSL_BUILD_FOLDER/include"
-  # On Linux, force pkg-config to use our static libs directly so the AC_LINK_IFELSE
-  # in ngtcp2's configure does not accidentally pick up the system's shared
-  # libssl (e.g. OpenSSL 1.1.1 on Rocky Linux 8) via the linker search path.
-  # When OPENSSL_LIBS / OPENSSL_CFLAGS are already set in the environment,
-  # PKG_CHECK_MODULES honours them and skips the pkg-config query entirely.
-  # On macOS, OpenSSL is a fat (universal) binary; embedding it into a shared
-  # library via OPENSSL_LIBS causes ranlib to fail with "bad magic number".
+  # When OPENSSL_LIBS / OPENSSL_CFLAGS are set, PKG_CHECK_MODULES honours them and skips
+  # the pkg-config query entirely, so the system's OpenSSL (e.g. 1.1.1 on Rocky Linux 8)
+  # cannot interfere via the linker search path.
+  # On macOS, OpenSSL is a fat (universal) binary; embedding it into a shared library via
+  # OPENSSL_LIBS causes ranlib to fail with "bad magic number".
   if [[ "$(uname)" != "Darwin" ]]; then
     export OPENSSL_LIBS="$OPENSSL_BUILD_FOLDER/lib/libssl.a $OPENSSL_BUILD_FOLDER/lib/libcrypto.a -ldl -pthread"
   fi
