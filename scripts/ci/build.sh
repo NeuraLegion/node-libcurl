@@ -489,29 +489,24 @@ fi
 # Create the tarballs
 if [[ "$MACOS_UNIVERSAL_BUILD" == "true" ]]; then
   # Need to publish two binaries when doing a universal build.
-  native_arch=$(uname -m)
-  if [ "$native_arch" == "x86_64" ]; then
-    cross_arch="arm64"
-    native_npm_arch="x64"
-    cross_npm_arch="arm64"
-  else
-    cross_arch="x86_64"
-    native_npm_arch="arm64"
-    cross_npm_arch="x64"
-  fi
+  #
+  # Fat-vs-thin decision is based on *target* npm arch, not the host arch,
+  # so the output is correct regardless of which Mac architecture runs this script:
+  #   darwin-x64  → thin x86_64 slice (electron-builder safe)
+  #   darwin-arm64 → full fat binary (arm64 + x86_64)
+  #
+  # Keeping both slices in the darwin-arm64 tarball means tools like pkg, which
+  # bundle native addons as opaque assets without running lipo, will have the
+  # correct slice available at runtime when cross-compiling (e.g. an arm64 CI
+  # runner producing a node22-macos-x64 executable).
 
-  # Package the cross-compiled architecture first (no testpackage - can't load it)
-  lipo build/Release/node_libcurl.node -thin $cross_arch -output lib/binding/node_libcurl.node
-  npm_config_target_arch=$cross_npm_arch pnpm pregyp package --verbose
+  # darwin-x64: thin x86_64 slice (no testpackage — cannot dlopen on arm64)
+  lipo build/Release/node_libcurl.node -thin x86_64 -output lib/binding/node_libcurl.node
+  npm_config_target_arch=x64 pnpm pregyp package --verbose
 
-  # Package the native architecture using the full universal (fat) binary.
-  # Unlike electron-builder, tools like pkg bundle native addons as opaque assets
-  # without trying to lipo them. Keeping both architecture slices in the native
-  # tarball (e.g. darwin-arm64) means consumers that cross-compile for a
-  # different target arch (e.g. an arm64 CI runner building a macos-x64 pkg
-  # binary) will have the correct slice available at runtime.
+  # darwin-arm64: full fat binary (arm64 + x86_64)
   cp build/Release/node_libcurl.node lib/binding/node_libcurl.node
-  npm_config_target_arch=$native_npm_arch pnpm pregyp package testpackage --verbose
+  npm_config_target_arch=arm64 pnpm pregyp package testpackage --verbose
 else
   pnpm pregyp package testpackage --verbose
 fi
