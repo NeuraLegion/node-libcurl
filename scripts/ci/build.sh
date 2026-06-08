@@ -489,11 +489,6 @@ fi
 # Create the tarballs
 if [[ "$MACOS_UNIVERSAL_BUILD" == "true" ]]; then
   # Need to publish two binaries when doing a universal build.
-  #
-  # Could also publish the universal build twice instead, but it might not
-  # play well with electron-builder which will try to lipo native add-ons
-  # for different architectures.
-  # --
   native_arch=$(uname -m)
   if [ "$native_arch" == "x86_64" ]; then
     cross_arch="arm64"
@@ -509,8 +504,13 @@ if [[ "$MACOS_UNIVERSAL_BUILD" == "true" ]]; then
   lipo build/Release/node_libcurl.node -thin $cross_arch -output lib/binding/node_libcurl.node
   npm_config_target_arch=$cross_npm_arch pnpm pregyp package --verbose
 
-  # Package the native architecture (with testpackage to verify it loads)
-  lipo build/Release/node_libcurl.node -thin $native_arch -output lib/binding/node_libcurl.node
+  # Package the native architecture using the full universal (fat) binary.
+  # Unlike electron-builder, tools like pkg bundle native addons as opaque assets
+  # without trying to lipo them. Keeping both architecture slices in the native
+  # tarball (e.g. darwin-arm64) means consumers that cross-compile for a
+  # different target arch (e.g. an arm64 CI runner building a macos-x64 pkg
+  # binary) will have the correct slice available at runtime.
+  cp build/Release/node_libcurl.node lib/binding/node_libcurl.node
   npm_config_target_arch=$native_npm_arch pnpm pregyp package testpackage --verbose
 else
   pnpm pregyp package testpackage --verbose
