@@ -20,6 +20,10 @@ inputs:
     description: 'Electron cache directory path'
     required: false
     default: '~/.cache/electron'
+  libc-variant:
+    description: 'Override libc variant detection ("musl" or "glibc"). Leave empty to auto-detect via /etc/alpine-release. Required for jobs that build inside Docker containers where the host OS differs from the build OS (e.g., alpine-arm64 jobs that run on an Ubuntu runner but build inside an Alpine Docker container).'
+    required: false
+    default: ''
   mode:
     description: 'Cache mode: "restore-only", "save-only", or "restore-and-save"'
     required: false
@@ -37,7 +41,9 @@ runs:
       id: detect-libc
       shell: sh
       run: |
-        if [ -f /etc/alpine-release ]; then
+        if [ -n "${{ inputs.libc-variant }}" ]; then
+          echo "variant=${{ inputs.libc-variant }}" >> "$GITHUB_OUTPUT"
+        elif [ -f /etc/alpine-release ]; then
           echo "variant=musl" >> "$GITHUB_OUTPUT"
         else
           echo "variant=glibc" >> "$GITHUB_OUTPUT"

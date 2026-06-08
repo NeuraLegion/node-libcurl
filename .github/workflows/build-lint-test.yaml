@@ -121,6 +121,7 @@ jobs:
           node-version: ${{ matrix.node }}
           electron-version: ${{ matrix.electron-version }}
           electron-config-cache: ${{ needs.config.outputs.electron-config-cache }}
+          libc-variant: ${{ matrix.os == 'alpine-arm64' && 'musl' || '' }}
           mode: 'restore-only'
 
       - name: Setup tmate session
@@ -142,6 +143,8 @@ jobs:
             -e LATEST_LIBCURL_RELEASE \
             -e ELECTRON_VERSION \
             -e PUBLISH_BINARY \
+            -e RUN_TESTS \
+            -e RUN_PREGYP_CLEAN \
             -e GIT_COMMIT \
             -e GIT_REF_NAME \
             -e HOME=/root \
@@ -179,6 +182,7 @@ jobs:
           node-version: ${{ matrix.node }}
           electron-version: ${{ matrix.electron-version }}
           electron-config-cache: ${{ needs.config.outputs.electron-config-cache }}
+          libc-variant: ${{ matrix.os == 'alpine-arm64' && 'musl' || '' }}
           mode: 'save-only'
 
       - name: Setup vcpkg (Windows)

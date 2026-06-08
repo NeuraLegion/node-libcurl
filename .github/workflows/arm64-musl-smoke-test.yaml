@@ -61,6 +61,7 @@ jobs:
           libcurl-release: ${{ needs.config.outputs.latest-libcurl-release }}
           node-version: ${{ matrix.node }}
           electron-config-cache: ${{ needs.config.outputs.electron-config-cache }}
+          libc-variant: musl
           mode: 'restore-only'
 
       - name: Build in Alpine container
@@ -71,6 +72,8 @@ jobs:
             -e LATEST_LIBCURL_RELEASE \
             -e ELECTRON_VERSION \
             -e PUBLISH_BINARY \
+            -e RUN_TESTS \
+            -e RUN_PREGYP_CLEAN \
             -e GIT_COMMIT \
             -e GIT_REF_NAME \
             -e HOME=/root \
@@ -105,6 +108,7 @@ jobs:
           libcurl-release: ${{ needs.config.outputs.latest-libcurl-release }}
           node-version: ${{ matrix.node }}
           electron-config-cache: ${{ needs.config.outputs.electron-config-cache }}
+          libc-variant: musl
           mode: 'save-only'
 
       - name: Run tests in Alpine container
