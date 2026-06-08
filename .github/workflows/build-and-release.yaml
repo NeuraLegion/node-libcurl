@@ -217,6 +217,7 @@ jobs:
 
       - name: Setup Libcurl Cache (Save, Non-Windows)
         if: runner.os != 'Windows' && steps.libcurl-deps-cache.outputs.cache-hit != 'true' && steps.built-and-installed.outputs.status == 'true'
+        continue-on-error: true
         uses: ./.github/actions/setup-libcurl-cache
         with:
           libcurl-release: ${{ matrix.libcurl-release }}
