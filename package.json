@@ -1,6 +1,6 @@
 {
   "name": "@brightsec/node-libcurl",
-  "version": "5.0.12-0",
+  "version": "5.0.13-0",
   "description": "The fastest http(s) client (and much more) for Node.js - Node.js bindings for libcurl",
   "keywords": [
     "node-curl",
