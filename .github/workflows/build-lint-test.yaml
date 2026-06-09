@@ -22,9 +22,14 @@ jobs:
     uses: ./.github/workflows/reusable-lint-tsc.yaml
 
   build-and-test:
+    # alpine-arm64 runs on the Ubuntu arm64 host WITHOUT a container; the build
+    # and test steps use an explicit `docker run` instead because GitHub Actions
+    # JS actions (checkout, cache, etc.) are not supported inside Alpine
+    # containers on arm64.
     runs-on: >-
       ${{ (matrix.os == 'alpine' || matrix.os == 'rocky-linux-8')
           && 'ubuntu-22.04'
+          || matrix.os == 'alpine-arm64' && 'ubuntu-24.04-arm'
           || matrix.os }}
     container: >-
       ${{ matrix.os == 'alpine'        && format('node:{0}-alpine3.21', matrix.node)
@@ -41,6 +46,7 @@ jobs:
           - rocky-linux-8
           - ubuntu-24.04-arm
           - alpine
+          - alpine-arm64
           - windows-2025
         libcurl-release:
           - ${{ needs.config.outputs.latest-libcurl-release }}
@@ -104,7 +110,7 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: '${{ matrix.node }}'
-          skip-node-setup: ${{ (matrix.os == 'alpine' || matrix.os == 'rocky-linux-8') && 'true' || 'false' }}
+          skip-node-setup: ${{ (matrix.os == 'alpine' || matrix.os == 'rocky-linux-8' || matrix.os == 'alpine-arm64') && 'true' || 'false' }}
 
       - name: Setup Libcurl Cache (Restore, Non-Windows)
         if: runner.os != 'Windows'
@@ -115,6 +121,7 @@ jobs:
           node-version: ${{ matrix.node }}
           electron-version: ${{ matrix.electron-version }}
           electron-config-cache: ${{ needs.config.outputs.electron-config-cache }}
+          libc-variant: ${{ matrix.os == 'alpine-arm64' && 'musl' || '' }}
           mode: 'restore-only'
 
       - name: Setup tmate session
@@ -122,8 +129,38 @@ jobs:
         if: matrix.enable-debugging
 
       - name: 'Build and Package Binary (Non-Windows)'
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && matrix.os != 'alpine-arm64'
         run: ./scripts/ci/build.sh
+
+      - name: 'Build and Package Binary (Alpine arm64)'
+        # GitHub Actions JS actions don't run inside Alpine containers on arm64 runners,
+        # so we build inside a docker container instead of using a container job.
+        if: matrix.os == 'alpine-arm64'
+        run: |
+          PNPM_VERSION=$(node -e "const {packageManager}=require('./package.json');console.log(packageManager.split('@')[1])")
+          docker run --rm \
+            -e LIBCURL_RELEASE \
+            -e LATEST_LIBCURL_RELEASE \
+            -e ELECTRON_VERSION \
+            -e PUBLISH_BINARY \
+            -e RUN_TESTS \
+            -e RUN_PREGYP_CLEAN \
+            -e GIT_COMMIT \
+            -e GIT_REF_NAME \
+            -e HOME=/root \
+            -e PNPM_VERSION="${PNPM_VERSION}" \
+            -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
+            -v "${HOME}/deps:/root/deps" \
+            -v "${HOME}/.node-gyp:/root/.node-gyp" \
+            -w "${GITHUB_WORKSPACE}" \
+            "node:${{ matrix.node }}-alpine3.21" \
+            sh -c '
+              apk add --no-cache bash python3 make g++ cmake perl linux-headers \
+                autoconf automake libtool ca-certificates coreutils pkgconfig py3-pip \
+                texinfo flex bison build-base libedit-dev zlib-dev zlib-static groff git &&
+              npm install -g pnpm@${PNPM_VERSION} &&
+              bash ./scripts/ci/build.sh
+            '
 
       - name: 'Check if fully installed and built (Non-Windows)'
         id: built-and-installed
@@ -139,12 +176,14 @@ jobs:
 
       - name: Setup Libcurl Cache (Save, Non-Windows)
         if: runner.os != 'Windows' && steps.libcurl-deps-cache.outputs.cache-hit != 'true' && steps.built-and-installed.outputs.status == 'true'
+        continue-on-error: true
         uses: ./.github/actions/setup-libcurl-cache
         with:
           libcurl-release: ${{ matrix.libcurl-release }}
           node-version: ${{ matrix.node }}
           electron-version: ${{ matrix.electron-version }}
           electron-config-cache: ${{ needs.config.outputs.electron-config-cache }}
+          libc-variant: ${{ matrix.os == 'alpine-arm64' && 'musl' || '' }}
           mode: 'save-only'
 
       - name: Setup vcpkg (Windows)
@@ -158,8 +197,20 @@ jobs:
 
       - name: 'Run tests'
         # no way to run vitest tests using electron's main process, so no point doing this here
-        if: matrix.electron-version == ''
+        if: matrix.electron-version == '' && matrix.os != 'alpine-arm64'
         run: pnpm test:coverage
+
+      - name: 'Run tests (Alpine arm64)'
+        if: matrix.os == 'alpine-arm64' && matrix.electron-version == ''
+        run: |
+          PNPM_VERSION=$(node -e "const {packageManager}=require('./package.json');console.log(packageManager.split('@')[1])")
+          docker run --rm \
+            -e HOME=/root \
+            -e PNPM_VERSION="${PNPM_VERSION}" \
+            -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
+            -w "${GITHUB_WORKSPACE}" \
+            "node:${{ matrix.node }}-alpine3.21" \
+            sh -c 'npm install -g pnpm@${PNPM_VERSION} && pnpm test:coverage'
 
       - name: Upload coverage to Codecov
         if: matrix.record-coverage && matrix.electron-version != ''
