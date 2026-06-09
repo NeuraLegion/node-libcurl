@@ -221,7 +221,15 @@ ls -al $NGHTTP2_BUILD_FOLDER/lib
 is_openssl_ge_3_5_0=0
 (printf '%s\n%s' "3.5.0" "$OPENSSL_RELEASE" | $gsort -CV) && is_openssl_ge_3_5_0=1 || true
 
-if [ "$is_openssl_ge_3_5_0" == "1" ]; then
+# HTTP/3 requires ngtcp2 + nghttp3.  ngtcp2 uses C11 atomics that musl libc
+# (Alpine) does not fully support with the Alpine GCC toolchain; building
+# libcurl with ngtcp2 on musl results in a link error. Skip HTTP/3 on Alpine.
+is_alpine=0
+if [[ -f /etc/alpine-release ]]; then
+  is_alpine=1
+fi
+
+if [ "$is_openssl_ge_3_5_0" == "1" ] && [ "$is_alpine" == "0" ]; then
   echo "OpenSSL version $OPENSSL_RELEASE is >= 3.5.0, building HTTP/3 support (nghttp3 and ngtcp2)"
 
   ###################
@@ -244,7 +252,7 @@ if [ "$is_openssl_ge_3_5_0" == "1" ]; then
   export NGTCP2_BUILD_FOLDER=$NGTCP2_DEST_FOLDER/build/$NGTCP2_RELEASE
   ls -al $NGTCP2_BUILD_FOLDER/lib
 else
-  echo "OpenSSL version $OPENSSL_RELEASE is < 3.5.0, skipping HTTP/3 support (nghttp3 and ngtcp2)"
+  echo "Skipping HTTP/3 support (nghttp3 and ngtcp2): OpenSSL=$OPENSSL_RELEASE, Alpine=$is_alpine"
 fi
 
 ###################
