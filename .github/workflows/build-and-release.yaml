@@ -165,6 +165,7 @@ jobs:
           node-version: ${{ matrix.node }}
           electron-version: ${{ matrix.electron-version }}
           electron-config-cache: ${{ needs.config.outputs.electron-config-cache }}
+          libc-variant: ${{ matrix.os == 'alpine-arm64' && 'musl' || '' }}
           mode: 'restore-only'
 
       - name: Setup tmate session
@@ -224,6 +225,7 @@ jobs:
           node-version: ${{ matrix.node }}
           electron-version: ${{ matrix.electron-version }}
           electron-config-cache: ${{ needs.config.outputs.electron-config-cache }}
+          libc-variant: ${{ matrix.os == 'alpine-arm64' && 'musl' || '' }}
           mode: 'save-only'
 
       - name: Setup vcpkg (Windows)
