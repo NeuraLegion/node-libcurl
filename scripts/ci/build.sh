@@ -308,6 +308,21 @@ ls -al $BROTLI_BUILD_FOLDER/lib
 ###################
 # Zlib version must match Node.js one
 ZLIB_RELEASE=${ZLIB_RELEASE:-$(node -e "console.log(process.versions.zlib)")}
+# Normalise zlib version: strip the motley git-hash suffix, then extract
+# the canonical numeric form (e.g. 1.3.0.1-motley-788cb3c -> 1.3.0.1).
+# zlib 1.3.0.x fails to compile on macOS 15 (Xcode 16) with universal arch
+# flags due to a known assembler issue fixed in 1.3.1; use 1.3.1 instead.
+if [ "$(uname)" == "Darwin" ]; then
+  _zlib_numeric=$(echo "$ZLIB_RELEASE" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/')
+  _zlib_major_minor=$(echo "$_zlib_numeric" | sed -E 's/([0-9]+\.[0-9]+).*/\1/')
+  if [ "$_zlib_major_minor" = "1.3" ]; then
+    _zlib_patch=$(echo "$_zlib_numeric" | sed -E 's/1\.3\.([0-9]+).*/\1/')
+    if [ "$_zlib_patch" = "0" ]; then
+      echo "Overriding zlib $ZLIB_RELEASE -> 1.3.1 (1.3.0.x fails on macOS 15 with Xcode 16)"
+      ZLIB_RELEASE=1.3.1
+    fi
+  fi
+fi
 ZLIB_DEST_FOLDER=$PREFIX_DIR/deps/zlib
 echo "Building zlib v$ZLIB_RELEASE"
 ./scripts/ci/build-zlib.sh $ZLIB_RELEASE $ZLIB_DEST_FOLDER >$LOGS_FOLDER/build-zlib.log 2>&1
