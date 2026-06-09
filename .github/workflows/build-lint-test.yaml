@@ -54,6 +54,7 @@ jobs:
           - 26
           - 25
           - 24
+          - 23
           - 22
         include:
           # we only want to record coverage in one of the jobs, in this case, the one for the latest stable Node.js version
