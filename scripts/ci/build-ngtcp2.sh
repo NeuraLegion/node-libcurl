@@ -43,15 +43,26 @@ fi
 # Join array with colons
 PKG_CONFIG_PATH_VALUE=$(IFS=:; echo "${PKG_CONFIG_PATH_PARTS[*]}")
 
-# Set LDFLAGS for rpath if OpenSSL is provided
-LDFLAGS_VALUE=""
+# Export PKG_CONFIG_PATH so sub-invocations inside ./configure pick up our custom deps
+# (e.g. nghttp3). OpenSSL is handled via OPENSSL_LIBS/OPENSSL_CFLAGS below, which causes
+# ngtcp2's PKG_CHECK_MODULES to skip the pkg-config query for OpenSSL entirely — so
+# PKG_CONFIG_LIBDIR manipulation is not needed to prevent system OpenSSL from winning.
+export PKG_CONFIG_PATH="$PKG_CONFIG_PATH_VALUE"
+
 if [ -n "${OPENSSL_BUILD_FOLDER:-}" ]; then
-  LDFLAGS_VALUE="-Wl,-rpath,$OPENSSL_BUILD_FOLDER/lib"
+  export LDFLAGS="-Wl,-rpath,$OPENSSL_BUILD_FOLDER/lib"
+  export OPENSSL_CFLAGS="-I$OPENSSL_BUILD_FOLDER/include"
+  # When OPENSSL_LIBS / OPENSSL_CFLAGS are set, PKG_CHECK_MODULES honours them and skips
+  # the pkg-config query entirely, so the system's OpenSSL (e.g. 1.1.1 on Rocky Linux 8)
+  # cannot interfere via the linker search path.
+  # On macOS, OpenSSL is a fat (universal) binary; embedding it into a shared library via
+  # OPENSSL_LIBS causes ranlib to fail with "bad magic number".
+  if [[ "$(uname)" != "Darwin" ]]; then
+    export OPENSSL_LIBS="$OPENSSL_BUILD_FOLDER/lib/libssl.a $OPENSSL_BUILD_FOLDER/lib/libcrypto.a -ldl -pthread"
+  fi
 fi
 
 # Release - Static
-PKG_CONFIG_PATH="$PKG_CONFIG_PATH_VALUE" \
-LDFLAGS="$LDFLAGS_VALUE" \
 ./configure \
   --prefix=$build_folder \
   --enable-lib-only \
