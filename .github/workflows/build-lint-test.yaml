@@ -60,7 +60,7 @@ jobs:
           # we only want to record coverage in one of the jobs, in this case, the one for the latest stable Node.js version
           - os: rocky-linux-8
             libcurl-release: ${{ needs.config.outputs.latest-libcurl-release }}
-            node: 24
+            node: 26
             record-coverage: true
           # we also want to build a job for old libcurl versions
           - os: rocky-linux-8

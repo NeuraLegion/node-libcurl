@@ -314,7 +314,9 @@ ls -al $BROTLI_BUILD_FOLDER/lib
 ###################
 # Build zlib
 ###################
-# Zlib version must match Node.js one
+# Zlib version defaults to Node.js's bundled version.
+# On macOS, this may be overridden below (e.g. 1.3.0.x is replaced with 1.3.1
+# because 1.3.0 fails to build on macOS 15 / Xcode 16 with universal arch flags).
 ZLIB_RELEASE=${ZLIB_RELEASE:-$(node -e "console.log(process.versions.zlib)")}
 # Normalise zlib version: strip the motley git-hash suffix, then extract
 # the canonical numeric form (e.g. 1.3.0.1-motley-788cb3c -> 1.3.0.1).
