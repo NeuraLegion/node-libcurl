@@ -26,7 +26,7 @@ runs:
       if: runner.os == 'Linux' && steps.detect-distro.outputs.distro == 'other'
       shell: bash
       run: |
-        sudo apt-get update && sudo apt-get install -y cmake groff libtsan0
+        sudo apt-get update && sudo apt-get install -y cmake groff libtsan0 libkrb5-dev
 
     - name: Install Needed packages on Linux (Rocky Linux 8)
       if: steps.detect-distro.outputs.distro == 'rocky'
@@ -56,4 +56,5 @@ runs:
         python3 py3-pip make g++ \
         perl linux-headers \
         autoconf automake libtool \
+        krb5-dev \
         texinfo flex bison build-base libedit-dev mandoc-soelim zlib zlib-dev zlib-static

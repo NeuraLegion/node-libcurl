@@ -106,9 +106,20 @@ async function createVcpkgJson() {
     )
   }
 
-  const vcpkgJson = vcpkgJsonTemplate
+  let vcpkgJson = vcpkgJsonTemplate
     .replace('$$OPENSSL_VERSION$$', opensslVersion)
     .replace('$$NODE_LIBCURL_VERSION$$', modulePackageJson.version)
+
+  // Add GSSAPI feature on non-Windows platforms for Kerberos/SPNEGO support.
+  // On Windows, SSPI (already included) handles Negotiate authentication.
+  if (process.platform !== 'win32') {
+    const parsed = JSON.parse(vcpkgJson)
+    const curlDep = parsed.dependencies.find((d) => d.name === 'curl')
+    if (curlDep && !curlDep.features.includes('gssapi')) {
+      curlDep.features.push('gssapi')
+    }
+    vcpkgJson = JSON.stringify(parsed, null, 2)
+  }
 
   fs.writeFileSync(path.join(moduleRoot, 'vcpkg.json'), vcpkgJson)
 }
