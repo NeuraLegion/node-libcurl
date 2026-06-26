@@ -152,10 +152,10 @@ Write-Host "Set node-gyp path to ${globalNodeGypPath}"
 $target = $target -replace '^v', ''
 
 # Set npm config variables
-# Do not pin msvs_version to a specific year; let node-gyp auto-detect the
-# installed Visual Studio version. The windows-2025 runner ships with VS 2026
-# (version major 18), which node-gyp >= 13 recognises. Pinning to "2022" would
-# cause a mismatch when the runner has a newer VS.
+# NOTE: This script requires a windows-2025+ runner (ships with VS 2026 / msvc v18).
+# The CI matrix uses only windows-2025; no windows-2022 runners are present.
+# Do not pin msvs_version: let node-gyp auto-detect the installed Visual Studio.
+# Pinning to "2022" would cause a version mismatch on VS 2026 with node-gyp >= 13.
 $env:npm_config_build_from_source = "true"
 $env:npm_config_runtime = $runtime
 $env:npm_config_dist_url = $dist_url
