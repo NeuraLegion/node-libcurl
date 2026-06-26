@@ -258,9 +258,37 @@ jobs:
           node scripts/module-packaging.js --publish "$(pnpm --silent pregyp reveal staged_tarball --silent)"
 
       - name: 'Publish Binary [non macos]'
-        if: runner.os != 'macOS' && steps.should-publish.outputs.result == 'true'
+        # alpine-arm64 is handled by a dedicated step below: its tarball is built
+        # inside a musl container, so the upload must also run in musl context for
+        # node-pre-gyp to resolve the correct `{libc}=musl` name. This step runs on
+        # the glibc host and would otherwise reveal a non-existent `-glibc` name.
+        if: runner.os != 'macOS' && matrix.os != 'alpine-arm64' && steps.should-publish.outputs.result == 'true'
         run: |
           node scripts/module-packaging.js --publish "$(pnpm --silent pregyp reveal staged_tarball --silent)"
+
+      - name: 'Publish Binary [alpine arm64]'
+        # The binary was packaged inside the Alpine (musl) container, so the staged
+        # tarball is named `...-linux-arm64-musl.tar.gz`. node-pre-gyp derives the
+        # `{libc}` token via detect-libc from the machine running `pregyp reveal`,
+        # so we must reveal AND publish from inside the same musl container.
+        # Running this on the glibc arm64 host would resolve a `-glibc` name that
+        # does not exist on disk and the upload would be skipped (the musl arm64
+        # prebuilt would silently never be attached to the release).
+        if: matrix.os == 'alpine-arm64' && steps.should-publish.outputs.result == 'true'
+        run: |
+          PNPM_VERSION=$(node -e "const {packageManager}=require('./package.json');console.log(packageManager.split('@')[1])")
+          docker run --rm \
+            -e NODE_LIBCURL_GITHUB_TOKEN \
+            -e HOME=/root \
+            -e PNPM_VERSION="${PNPM_VERSION}" \
+            -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
+            -w "${GITHUB_WORKSPACE}" \
+            "node:${{ matrix.node }}-alpine3.21" \
+            sh -c '
+              apk add --no-cache bash ca-certificates &&
+              npm install -g pnpm@${PNPM_VERSION} &&
+              node scripts/module-packaging.js --publish "$(pnpm --silent pregyp reveal staged_tarball --silent)"
+            '
 
       - name: Upload Build Logs
         if: always() && runner.os != 'Windows'
