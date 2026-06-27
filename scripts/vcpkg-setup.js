@@ -106,9 +106,40 @@ async function createVcpkgJson() {
     )
   }
 
-  const vcpkgJson = vcpkgJsonTemplate
+  let vcpkgJson = vcpkgJsonTemplate
     .replace('$$OPENSSL_VERSION$$', opensslVersion)
     .replace('$$NODE_LIBCURL_VERSION$$', modulePackageJson.version)
+
+  const parsed = JSON.parse(vcpkgJson)
+  const curlDep = parsed.dependencies.find((d) => d.name === 'curl')
+
+  // The http3 feature depends on ngtcp2, which requires a QUIC-capable
+  // OpenSSL (>= 3.5.0 with enable-quic). Older Node.js versions bundle
+  // OpenSSL < 3.5, so building http3 with them would fail at vcpkg compile
+  // time (ngtcp2's OpenSSL backend requires SSL_set_quic_tls_cbs, only
+  // available in 3.5+). Remove the feature when the resolved OpenSSL version
+  // doesn't meet the requirement.
+  const [oMajor, oMinor] = opensslVersion.split('.').map(Number)
+  const opensslGe350 = oMajor > 3 || (oMajor === 3 && oMinor >= 5)
+  if (!opensslGe350 && curlDep) {
+    const idx = curlDep.features.indexOf('http3')
+    if (idx !== -1) {
+      curlDep.features.splice(idx, 1)
+      console.log(
+        `OpenSSL ${opensslVersion} < 3.5.0: removing http3 feature from vcpkg.json (ngtcp2 requires QUIC-capable OpenSSL)`,
+      )
+    }
+  }
+
+  // Add GSSAPI feature on non-Windows platforms for Kerberos/SPNEGO support.
+  // On Windows, SSPI (already included) handles Negotiate authentication.
+  if (process.platform !== 'win32') {
+    if (curlDep && !curlDep.features.includes('gssapi')) {
+      curlDep.features.push('gssapi')
+    }
+  }
+
+  vcpkgJson = JSON.stringify(parsed, null, 2)
 
   fs.writeFileSync(path.join(moduleRoot, 'vcpkg.json'), vcpkgJson)
 }

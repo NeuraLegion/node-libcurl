@@ -23,6 +23,29 @@
     # installed, which is not a standard developer requirement.
     'node_libcurl_static_runtime%': 'false'
   },
+  # Node 26+ (Windows): the official Node build switched to ClangCL + ThinLTO,
+  # so common.gypi injects -flto=thin (compiler) and opt:lldltojobs=N (linker)
+  # into every Release target. MSVC cl.exe silently ignores -flto=thin (D9002),
+  # but link.exe fatally rejects opt:lldltojobs=N with LNK1117
+  # ("syntax error in option"). Strip both via GYP's regex-exclude mechanism
+  # on the MSVC tool sections. This block is entirely inert on Linux/macOS.
+  'target_defaults': {
+    'configurations': {
+      'Release': {
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'AdditionalOptions/': [['exclude', 'flto'], ['exclude', 'lldltojobs']],
+          },
+          'VCLibrarianTool': {
+            'AdditionalOptions/': [['exclude', 'flto'], ['exclude', 'lldltojobs']],
+          },
+          'VCLinkerTool': {
+            'AdditionalOptions/': [['exclude', 'flto'], ['exclude', 'lldltojobs']],
+          },
+        },
+      },
+    },
+  },
   'targets': [
     {
       'target_name': '<(module_name)',
