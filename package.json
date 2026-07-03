@@ -61,7 +61,8 @@
     "prettier:all": "pnpm prettier lib/**/*.ts tools/**/*.js scripts/**/*.js test/**/*.ts examples/**/*.js",
     "test": "vitest run",
     "test:coverage": "pnpm test -- --coverage.enabled=true",
-    "test:watch": "vitest",
+    "test:stress": "vitest run --config vitest.stress.config.ts",
+    "test:watch": "vitest --testTimeout=60000",
     "preversion": "pnpm lint && pnpm clean:dist && pnpm build:dist"
   },
   "lint-staged": {
@@ -78,7 +79,7 @@
     ]
   },
   "dependencies": {
-    "@mapbox/node-pre-gyp": "2.0.0",
+    "@mapbox/node-pre-gyp": "2.0.3",
     "env-paths": "2.2.0",
     "node-addon-api": "8.5.0",
     "node-gyp": "13.0.0",
@@ -134,7 +135,6 @@
   },
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org",
     "executableFiles": [
       "scripts/arm/publish-binary.sh",
       "scripts/ci/build-brotli.sh",
@@ -159,7 +159,8 @@
       "scripts/ci/get-latest-libcurl-version.sh",
       "scripts/ci/utils/gsort.sh",
       "scripts/gyp-macos-postbuild.sh"
-    ]
+    ],
+    "registry": "https://registry.npmjs.org"
   },
   "np": {
     "cleanup": false
