@@ -1,6 +1,6 @@
 {
   "name": "@brightsec/node-libcurl",
-  "version": "5.1.8",
+  "version": "5.0.8",
   "description": "The fastest http(s) client (and much more) for Node.js - Node.js bindings for libcurl",
   "keywords": [
     "node-curl",
@@ -135,7 +135,6 @@
   },
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org",
     "executableFiles": [
       "scripts/arm/publish-binary.sh",
       "scripts/ci/build-brotli.sh",
@@ -160,7 +159,8 @@
       "scripts/ci/get-latest-libcurl-version.sh",
       "scripts/ci/utils/gsort.sh",
       "scripts/gyp-macos-postbuild.sh"
-    ]
+    ],
+    "registry": "https://registry.npmjs.org"
   },
   "np": {
     "cleanup": false
