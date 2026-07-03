@@ -154,7 +154,7 @@ jobs:
             -v "${HOME}/deps:/root/deps" \
             -v "${HOME}/.node-gyp:/root/.node-gyp" \
             -w "${GITHUB_WORKSPACE}" \
-            "node:${{ matrix.node }}-alpine3.21" \
+            "node:${{ matrix.node }}-alpine3.22" \
             sh -c '
               apk add --no-cache bash python3 make g++ cmake perl linux-headers \
                 autoconf automake libtool ca-certificates coreutils pkgconfig py3-pip \
@@ -210,7 +210,7 @@ jobs:
             -e PNPM_VERSION="${PNPM_VERSION}" \
             -v "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
             -w "${GITHUB_WORKSPACE}" \
-            "node:${{ matrix.node }}-alpine3.21" \
+            "node:${{ matrix.node }}-alpine3.22" \
             sh -c 'npm install -g pnpm@${PNPM_VERSION} && pnpm test:coverage'
 
       - name: Upload coverage to Codecov
