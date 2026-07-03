@@ -458,23 +458,10 @@ CurlMimePart.prototype.setDataStream = function (
     cleanup()
   }
 
-  // Removes stream event listeners only — does NOT cancel pending unpause
-  // so that an in-flight scheduleUnpause() from read() or onEnd/onError
-  // can still fire after the stream is done.
-  const removeListeners = () => {
+  const cleanup = () => {
     stream.off('readable', onReadable)
     stream.off('end', onEnd)
     stream.off('error', onError)
-  }
-
-  // Full cleanup: remove listeners AND cancel any pending unpause.
-  // Called only from free() when the curl handle is being torn down.
-  const cleanup = () => {
-    removeListeners()
-    if (pendingUnpause) {
-      clearImmediate(pendingUnpause)
-      pendingUnpause = null
-    }
   }
 
   stream.pause()
@@ -493,7 +480,6 @@ CurlMimePart.prototype.setDataStream = function (
       }
 
       if (streamEnded) {
-        paused = false
         return null
       }
 
@@ -501,16 +487,12 @@ CurlMimePart.prototype.setDataStream = function (
 
       if (data === null) {
         if (streamEnded) {
-          paused = false
           return null
         }
         paused = true
         return CurlReadFunc.Pause
       }
 
-      // Data is available: libcurl has resumed the handle, so clear paused
-      // to stop the retry loop in tryUnpause.
-      paused = false
       return data instanceof Buffer ? data : Buffer.from(data)
     },
     free: () => {
