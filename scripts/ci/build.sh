@@ -221,7 +221,15 @@ ls -al $NGHTTP2_BUILD_FOLDER/lib
 is_openssl_ge_3_5_0=0
 (printf '%s\n%s' "3.5.0" "$OPENSSL_RELEASE" | $gsort -CV) && is_openssl_ge_3_5_0=1 || true
 
-if [ "$is_openssl_ge_3_5_0" == "1" ]; then
+# HTTP/3 requires ngtcp2 + nghttp3.  ngtcp2 uses C11 atomics that musl libc
+# (Alpine) does not fully support with the Alpine GCC toolchain; building
+# libcurl with ngtcp2 on musl results in a link error. Skip HTTP/3 on Alpine.
+is_alpine=0
+if [[ -f /etc/alpine-release ]]; then
+  is_alpine=1
+fi
+
+if [ "$is_openssl_ge_3_5_0" == "1" ] && [ "$is_alpine" == "0" ]; then
   echo "OpenSSL version $OPENSSL_RELEASE is >= 3.5.0, building HTTP/3 support (nghttp3 and ngtcp2)"
 
   ###################
@@ -244,7 +252,7 @@ if [ "$is_openssl_ge_3_5_0" == "1" ]; then
   export NGTCP2_BUILD_FOLDER=$NGTCP2_DEST_FOLDER/build/$NGTCP2_RELEASE
   ls -al $NGTCP2_BUILD_FOLDER/lib
 else
-  echo "OpenSSL version $OPENSSL_RELEASE is < 3.5.0, skipping HTTP/3 support (nghttp3 and ngtcp2)"
+  echo "Skipping HTTP/3 support (nghttp3 and ngtcp2): OpenSSL=$OPENSSL_RELEASE, Alpine=$is_alpine"
 fi
 
 ###################
@@ -306,8 +314,25 @@ ls -al $BROTLI_BUILD_FOLDER/lib
 ###################
 # Build zlib
 ###################
-# Zlib version must match Node.js one
+# Zlib version defaults to Node.js's bundled version.
+# On macOS, this may be overridden below (e.g. 1.3.0.x is replaced with 1.3.1
+# because 1.3.0 fails to build on macOS 15 / Xcode 16 with universal arch flags).
 ZLIB_RELEASE=${ZLIB_RELEASE:-$(node -e "console.log(process.versions.zlib)")}
+# Normalise zlib version: strip the motley git-hash suffix, then extract
+# the canonical numeric form (e.g. 1.3.0.1-motley-788cb3c -> 1.3.0.1).
+# zlib 1.3.0.x fails to compile on macOS 15 (Xcode 16) with universal arch
+# flags due to a known assembler issue fixed in 1.3.1; use 1.3.1 instead.
+if [ "$(uname)" == "Darwin" ]; then
+  _zlib_numeric=$(echo "$ZLIB_RELEASE" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/')
+  _zlib_major_minor=$(echo "$_zlib_numeric" | sed -E 's/([0-9]+\.[0-9]+).*/\1/')
+  if [ "$_zlib_major_minor" = "1.3" ]; then
+    _zlib_patch=$(echo "$_zlib_numeric" | sed -E 's/1\.3\.([0-9]+).*/\1/')
+    if [ "$_zlib_patch" = "0" ]; then
+      echo "Overriding zlib $ZLIB_RELEASE -> 1.3.1 (1.3.0.x fails on macOS 15 with Xcode 16)"
+      ZLIB_RELEASE=1.3.1
+    fi
+  fi
+fi
 ZLIB_DEST_FOLDER=$PREFIX_DIR/deps/zlib
 echo "Building zlib v$ZLIB_RELEASE"
 ./scripts/ci/build-zlib.sh $ZLIB_RELEASE $ZLIB_DEST_FOLDER >$LOGS_FOLDER/build-zlib.log 2>&1
