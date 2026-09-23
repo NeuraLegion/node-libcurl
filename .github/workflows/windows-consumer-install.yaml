@@ -77,7 +77,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandErrorActionPreference = $true
 
-          $package = Get-ChildItem $env:RUNNER_TEMP -Filter 'node-libcurl-*.tgz' |
+          $package = Get-ChildItem $env:RUNNER_TEMP -Filter '*node-libcurl-*.tgz' |
             Select-Object -First 1
 
           if (-not $package) {
@@ -111,7 +111,7 @@ jobs:
             "private": true,
             "type": "commonjs",
             "pnpm": {
-              "onlyBuiltDependencies": ["node-libcurl"]
+              "onlyBuiltDependencies": ["@brightsec/node-libcurl"]
             }
           }
           '@)
@@ -129,7 +129,7 @@ jobs:
           $env:npm_config_node_gyp = $globalNodeGypPath
           Write-Host "Pointing pnpm at node-gyp: $globalNodeGypPath"
 
-          pnpm add $package.FullName --allow-build=node-libcurl --fetch-timeout 300000
+          pnpm add $package.FullName --allow-build=@brightsec/node-libcurl --fetch-timeout 300000
           if ($LASTEXITCODE -ne 0) {
             throw "pnpm add exited with code $LASTEXITCODE"
           }
@@ -138,7 +138,7 @@ jobs:
           # so it's the most important thing to verify exists. Without the
           # node-gyp override above this never got written, and the previous
           # "passing" run was just finding the vcpkg byproduct.
-          $consumerPkgRoot = Join-Path $consumerRoot 'node_modules\node-libcurl'
+          $consumerPkgRoot = Join-Path $consumerRoot 'node_modules\@brightsec\node-libcurl'
           $addon = Get-ChildItem -Path $consumerPkgRoot -Recurse -Filter node_libcurl.node |
             Select-Object -First 1
 
