@@ -16,9 +16,22 @@ const {
 
 const modulePackageJson = require('../package.json')
 
+// Route vcpkg's asset downloads through our fetcher so that dependencies only
+// published on the (intermittently unreachable) GNU FTP network — e.g. gsasl —
+// fall back to a reachable GNU mirror. Appended to any asset source the
+// consumer already configured, so their cache still takes precedence. vcpkg
+// still verifies each asset's SHA512, so this cannot swap in a different file.
+const assetScript = path.join(__dirname, 'vcpkg-fetch-asset.js')
+const assetSource = `x-script,node "${assetScript}" {url} {sha512} {dst}`
+const existingAssetSources = process.env.X_VCPKG_ASSET_SOURCES
+const X_VCPKG_ASSET_SOURCES = existingAssetSources
+  ? `${existingAssetSources};${assetSource}`
+  : assetSource
+
 const commonEnv = {
   ...process.env,
   VCPKG_DISABLE_METRICS: '1',
+  X_VCPKG_ASSET_SOURCES,
 }
 
 async function setupVcpkg() {
