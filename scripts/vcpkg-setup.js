@@ -21,8 +21,13 @@ const modulePackageJson = require('../package.json')
 // fall back to a reachable GNU mirror. Appended to any asset source the
 // consumer already configured, so their cache still takes precedence. vcpkg
 // still verifies each asset's SHA512, so this cannot swap in a different file.
+//
+// vcpkg launches the x-script command with CreateProcessW (no shell) and runs
+// it inside its own build environment where PATH is reset, so a bare `node`
+// isn't found (CreateProcessW fails with 2). Use the absolute path to the
+// current Node executable instead. Both paths are quoted for spaces.
 const assetScript = path.join(__dirname, 'vcpkg-fetch-asset.js')
-const assetSource = `x-script,node "${assetScript}" {url} {sha512} {dst}`
+const assetSource = `x-script,"${process.execPath}" "${assetScript}" {url} {sha512} {dst}`
 const existingAssetSources = process.env.X_VCPKG_ASSET_SOURCES
 const X_VCPKG_ASSET_SOURCES = existingAssetSources
   ? `${existingAssetSources};${assetSource}`
