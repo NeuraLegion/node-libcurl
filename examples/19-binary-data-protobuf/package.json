@@ -3,7 +3,7 @@
     "@koa/router": "^14.0.0",
     "es6-promisify": "7.0.0",
     "koa": "^3.0.1",
-    "protobufjs": "7.5.4",
+    "protobufjs": "7.6.5",
     "raw-body": "3.0.1",
     "stoppable": "1.1.0"
   }
